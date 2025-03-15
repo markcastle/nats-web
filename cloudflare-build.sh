@@ -14,4 +14,11 @@ echo "Building the project..."
 echo "Skipping TypeScript type checking..."
 npx vite build
 
+# Ensure the favicon is properly copied
+echo "Ensuring favicon is properly copied..."
+if [ -f "public/nats-logo.svg" ] && [ -d "dist" ]; then
+  cp public/nats-logo.svg dist/
+  echo "Favicon copied successfully!"
+fi
+
 echo "Build completed successfully!" 
