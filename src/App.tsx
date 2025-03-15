@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { NatsProvider } from './contexts/NatsContext'
 import ConnectionForm from './components/ConnectionForm'
 import PublishMessage from './components/PublishMessage'

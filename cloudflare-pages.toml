@@ -1,11 +1,11 @@
 # Cloudflare Pages configuration
 
 [build]
-  command = "npm run build"
+  command = "chmod +x ./cloudflare-build.sh && ./cloudflare-build.sh"
   publish = "dist"
 
 [build.environment]
-  NODE_VERSION = "20"
+  NODE_VERSION = "20.9.0"
 
 # Handle SPA routing
 [[redirects]]
