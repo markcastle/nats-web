@@ -2,11 +2,18 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { NatsConnection, Subscription, StringCodec } from 'nats';
 import { createBrowserNatsConnection } from '../utils/natsUtils';
 
+// Define authentication options type
+export interface NatsAuthOptions {
+  token?: string;
+  username?: string;
+  password?: string;
+}
+
 interface NatsContextType {
   connection: NatsConnection | null;
   isConnected: boolean;
   error: string | null;
-  connectToNats: (serverUrl: string, token?: string, timeout?: number) => Promise<void>;
+  connectToNats: (serverUrl: string, authOptions?: NatsAuthOptions, timeout?: number) => Promise<void>;
   disconnect: () => Promise<void>;
   publishMessage: (topic: string, message: string) => Promise<void>;
   subscribeToTopic: (topic: string, callback: (message: string) => void) => Promise<Subscription | null>;
@@ -43,12 +50,12 @@ export const NatsProvider = ({ children }: NatsProviderProps) => {
     };
   }, [connection]);
 
-  const connectToNats = async (serverUrl: string, token?: string, timeout?: number) => {
+  const connectToNats = async (serverUrl: string, authOptions: NatsAuthOptions = {}, timeout?: number) => {
     try {
       setError(null);
       
       // Use our browser-specific connection utility
-      const nc = await createBrowserNatsConnection(serverUrl, token, timeout);
+      const nc = await createBrowserNatsConnection(serverUrl, authOptions, timeout);
       
       console.log('NATS connection established');
       setConnection(nc);

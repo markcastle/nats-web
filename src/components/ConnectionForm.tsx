@@ -6,7 +6,9 @@ const ConnectionForm = () => {
   const { connectToNats, disconnect, isConnected, error } = useNats();
   const [serverUrl, setServerUrl] = useState('');
   const [token, setToken] = useState('');
-  const [connectionType, setConnectionType] = useState<'url' | 'urlWithAuth'>('url');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [connectionType, setConnectionType] = useState<'url' | 'credentials' | 'token'>('url');
   const [isConnecting, setIsConnecting] = useState(false);
   const [advancedMode, setAdvancedMode] = useState(false);
   const [showRawUrl, setShowRawUrl] = useState(false);
@@ -14,23 +16,11 @@ const ConnectionForm = () => {
   const [wsTestResult, setWsTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [connectionTimeout, setConnectionTimeout] = useState(30); // Default 30 seconds
 
-  // Process URL to handle special characters in credentials
+  // Simplified URL processing function - no need to handle credentials in URL anymore
   const processUrl = (url: string): string => {
     try {
-      // If URL already contains credentials, ensure they're properly encoded
-      if (url.includes('@')) {
-        // Extract parts of the URL
-        const urlObj = new URL(url);
-        const protocol = urlObj.protocol; // ws:// or wss://
-        const credentials = urlObj.username && urlObj.password 
-          ? `${encodeURIComponent(urlObj.username)}:${encodeURIComponent(urlObj.password)}@` 
-          : '';
-        const host = urlObj.host; // hostname:port
-        const path = urlObj.pathname + urlObj.search + urlObj.hash;
-        
-        // Reconstruct the URL with encoded credentials
-        return `${protocol}//${credentials}${host}${path}`;
-      }
+      // Just validate it's a valid URL
+      new URL(url);
       return url;
     } catch (err) {
       console.error('Error processing URL:', err);
@@ -49,16 +39,19 @@ const ConnectionForm = () => {
         throw new Error('URL must start with ws:// or wss:// for WebSocket connections');
       }
       
-      // Process the URL to handle special characters in credentials
+      // Process the URL to handle special characters if needed
       const processedUrl = processUrl(serverUrl);
-      console.log('Attempting to connect to:', showRawUrl ? processedUrl : serverUrl.replace(/\/\/([^@]*?)@/, '//***@'));
+      console.log('Attempting to connect to:', showRawUrl ? processedUrl : serverUrl);
       
-      if (connectionType === 'url' && token) {
-        // Connect with separate token
-        await connectToNats(processedUrl, token, connectionTimeout * 1000);
+      if (connectionType === 'token' && token) {
+        // Connect with token auth
+        await connectToNats(processedUrl, { token }, connectionTimeout * 1000);
+      } else if (connectionType === 'credentials' && username) {
+        // Connect with username/password auth
+        await connectToNats(processedUrl, { username, password }, connectionTimeout * 1000);
       } else {
-        // Connect with URL only (auth may be embedded)
-        await connectToNats(processedUrl, undefined, connectionTimeout * 1000);
+        // Connect with URL only (no auth)
+        await connectToNats(processedUrl, {}, connectionTimeout * 1000);
       }
     } catch (err: any) {
       console.error('Connection error:', err);
@@ -75,15 +68,12 @@ const ConnectionForm = () => {
     const url = e.target.value;
     setServerUrl(url);
     
-    // Check if URL contains authentication
-    if (url.includes('@')) {
-      setConnectionType('urlWithAuth');
-    } else {
-      setConnectionType('url');
-    }
-    
     // Clear previous test results when URL changes
     setWsTestResult(null);
+  };
+
+  const handleConnectionTypeChange = (type: 'url' | 'credentials' | 'token') => {
+    setConnectionType(type);
   };
 
   const handleTestWebSocket = async () => {
@@ -157,30 +147,103 @@ const ConnectionForm = () => {
               type="text"
               value={serverUrl}
               onChange={handleUrlChange}
-              placeholder="wss://nats.example.com:8443 or wss://user:pass@nats.example.com:8443"
+              placeholder="wss://nats.example.com:8443"
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               required
             />
             <p className="text-xs text-gray-500 mt-1">
-              Example: wss://sandbox.nats.io:8443 or wss://user:password@nats.example.com:8443
+              Example: wss://sandbox.nats.io:8443 (do not include credentials in URL)
             </p>
           </div>
 
-          {connectionType === 'url' && (
-            <div>
-              <label htmlFor="token" className="block text-sm font-medium text-gray-700 mb-1">
-                Authentication Token (Optional)
+          <div className="border border-gray-200 rounded-md p-3">
+            <p className="block text-sm font-medium text-gray-700 mb-2">Authentication Method</p>
+            
+            <div className="flex flex-col space-y-2">
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  name="connectionType"
+                  checked={connectionType === 'url'}
+                  onChange={() => handleConnectionTypeChange('url')}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                />
+                <span className="ml-2 text-sm text-gray-700">No Authentication</span>
               </label>
-              <input
-                id="token"
-                type="password"
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                placeholder="Enter auth token if required"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
+              
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  name="connectionType"
+                  checked={connectionType === 'credentials'}
+                  onChange={() => handleConnectionTypeChange('credentials')}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                />
+                <span className="ml-2 text-sm text-gray-700">Username & Password</span>
+              </label>
+              
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  name="connectionType"
+                  checked={connectionType === 'token'}
+                  onChange={() => handleConnectionTypeChange('token')}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                />
+                <span className="ml-2 text-sm text-gray-700">Token</span>
+              </label>
             </div>
-          )}
+            
+            {connectionType === 'credentials' && (
+              <div className="mt-3 space-y-3">
+                <div>
+                  <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                    Username
+                  </label>
+                  <input
+                    id="username"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Enter username"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    required={connectionType === 'credentials'}
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter password"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+            )}
+            
+            {connectionType === 'token' && (
+              <div className="mt-3">
+                <label htmlFor="token" className="block text-sm font-medium text-gray-700 mb-1">
+                  Authentication Token
+                </label>
+                <input
+                  id="token"
+                  type="password"
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  placeholder="Enter auth token"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  required={connectionType === 'token'}
+                />
+              </div>
+            )}
+          </div>
 
           <div className="flex items-center">
             <input
@@ -318,6 +381,7 @@ websocket {
                 <p className="font-medium">Troubleshooting steps:</p>
                 <ul className="list-disc pl-5 mt-1">
                   <li>Make sure you're using WebSocket URLs (ws:// or wss://)</li>
+                  <li>Do not include credentials in the URL - use the separate username/password fields</li>
                   <li>Verify your NATS server has WebSocket support enabled</li>
                   <li>Check that you're using the correct WebSocket port (often 8080 or 8443)</li>
                   <li>Try the "Test Direct WebSocket Connection" option to check basic connectivity</li>

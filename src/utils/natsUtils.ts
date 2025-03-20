@@ -1,15 +1,16 @@
 import { connect, NatsConnection } from 'nats.ws';
+import { NatsAuthOptions } from '../contexts/NatsContext';
 
 /**
  * Creates a NATS connection using the official NATS.ws client
  * @param serverUrl The WebSocket URL of the NATS server
- * @param token Optional authentication token
+ * @param authOptions Authentication options (token or username/password)
  * @param timeout Optional connection timeout
  * @returns A Promise that resolves to a NatsConnection
  */
 export async function createBrowserNatsConnection(
   serverUrl: string,
-  token?: string,
+  authOptions: NatsAuthOptions = {},
   timeout?: number
 ): Promise<NatsConnection> {
   // Ensure URL starts with ws:// or wss://
@@ -18,8 +19,7 @@ export async function createBrowserNatsConnection(
   }
 
   try {
-    console.log('Connecting to NATS with official nats.ws client:', 
-      serverUrl.includes('@') ? serverUrl.replace(/\/\/([^@]*?)@/, '//***@') : serverUrl);
+    console.log('Connecting to NATS with official nats.ws client:', serverUrl);
     
     // Configure connection options
     const options: any = {
@@ -32,21 +32,25 @@ export async function createBrowserNatsConnection(
       maxPingOut: 3
     };
 
-    // Add token if provided
-    if (token) {
-      options.token = token;
-      console.log('Using separate token authentication');
-    } else if (serverUrl.includes('@')) {
-      console.log('Using credentials embedded in URL');
+    // Add authentication if provided
+    if (authOptions.token) {
+      options.token = authOptions.token;
+      console.log('Using token authentication');
+    } else if (authOptions.username) {
+      options.user = authOptions.username;
+      options.pass = authOptions.password || '';
+      console.log('Using username/password authentication');
+    } else {
+      console.log('No authentication provided');
     }
     
     // Log connection attempt details (safely)
     console.log('NATS connection options:', {
       ...options,
-      servers: options.servers.map((url: string) => 
-        url.includes('@') ? url.replace(/\/\/([^@]*?)@/, '//***@') : url
-      ),
-      token: options.token ? '***' : undefined
+      servers: options.servers,
+      token: options.token ? '***' : undefined,
+      user: options.user ? '***' : undefined,
+      pass: options.pass ? '***' : undefined
     });
     
     // Connect using the official client
