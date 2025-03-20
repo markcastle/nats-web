@@ -6,7 +6,7 @@ interface NatsContextType {
   connection: NatsConnection | null;
   isConnected: boolean;
   error: string | null;
-  connectToNats: (serverUrl: string, token?: string) => Promise<void>;
+  connectToNats: (serverUrl: string, token?: string, timeout?: number) => Promise<void>;
   disconnect: () => Promise<void>;
   publishMessage: (topic: string, message: string) => Promise<void>;
   subscribeToTopic: (topic: string, callback: (message: string) => void) => Promise<Subscription | null>;
@@ -43,12 +43,12 @@ export const NatsProvider = ({ children }: NatsProviderProps) => {
     };
   }, [connection]);
 
-  const connectToNats = async (serverUrl: string, token?: string) => {
+  const connectToNats = async (serverUrl: string, token?: string, timeout?: number) => {
     try {
       setError(null);
       
       // Use our browser-specific connection utility
-      const nc = await createBrowserNatsConnection(serverUrl, token);
+      const nc = await createBrowserNatsConnection(serverUrl, token, timeout);
       
       console.log('NATS connection established');
       setConnection(nc);

@@ -4,11 +4,13 @@ import { connect, NatsConnection } from 'nats.ws';
  * Creates a NATS connection using the official NATS.ws client
  * @param serverUrl The WebSocket URL of the NATS server
  * @param token Optional authentication token
+ * @param timeout Optional connection timeout
  * @returns A Promise that resolves to a NatsConnection
  */
 export async function createBrowserNatsConnection(
   serverUrl: string,
-  token?: string
+  token?: string,
+  timeout?: number
 ): Promise<NatsConnection> {
   // Ensure URL starts with ws:// or wss://
   if (!serverUrl.startsWith('ws://') && !serverUrl.startsWith('wss://')) {
@@ -25,7 +27,7 @@ export async function createBrowserNatsConnection(
       reconnect: true,
       reconnectTimeWait: 2000,
       maxReconnectAttempts: 10,
-      timeout: 20000,
+      timeout: timeout || 30000, // Use provided timeout or default to 30 seconds
       pingInterval: 30000,
       maxPingOut: 3
     };
@@ -33,7 +35,19 @@ export async function createBrowserNatsConnection(
     // Add token if provided
     if (token) {
       options.token = token;
+      console.log('Using separate token authentication');
+    } else if (serverUrl.includes('@')) {
+      console.log('Using credentials embedded in URL');
     }
+    
+    // Log connection attempt details (safely)
+    console.log('NATS connection options:', {
+      ...options,
+      servers: options.servers.map((url: string) => 
+        url.includes('@') ? url.replace(/\/\/([^@]*?)@/, '//***@') : url
+      ),
+      token: options.token ? '***' : undefined
+    });
     
     // Connect using the official client
     return await connect(options);

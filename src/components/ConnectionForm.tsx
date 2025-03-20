@@ -12,6 +12,7 @@ const ConnectionForm = () => {
   const [showRawUrl, setShowRawUrl] = useState(false);
   const [testingWebSocket, setTestingWebSocket] = useState(false);
   const [wsTestResult, setWsTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [connectionTimeout, setConnectionTimeout] = useState(30); // Default 30 seconds
 
   // Process URL to handle special characters in credentials
   const processUrl = (url: string): string => {
@@ -54,10 +55,10 @@ const ConnectionForm = () => {
       
       if (connectionType === 'url' && token) {
         // Connect with separate token
-        await connectToNats(processedUrl, token);
+        await connectToNats(processedUrl, token, connectionTimeout * 1000);
       } else {
         // Connect with URL only (auth may be embedded)
-        await connectToNats(processedUrl);
+        await connectToNats(processedUrl, undefined, connectionTimeout * 1000);
       }
     } catch (err: any) {
       console.error('Connection error:', err);
@@ -209,6 +210,24 @@ const ConnectionForm = () => {
                 <label htmlFor="showRawUrl" className="ml-2 block text-sm text-gray-700">
                   Show raw URL in console logs (includes credentials)
                 </label>
+              </div>
+              
+              <div className="mb-3">
+                <label htmlFor="connectionTimeout" className="block text-sm font-medium text-gray-700 mb-1">
+                  Connection Timeout (seconds)
+                </label>
+                <input
+                  id="connectionTimeout"
+                  type="number"
+                  min="5"
+                  max="120"
+                  value={connectionTimeout}
+                  onChange={(e) => setConnectionTimeout(parseInt(e.target.value) || 30)}
+                  className="w-24 px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Increase timeout for slow connections or high-latency networks
+                </p>
               </div>
               
               <div className="mt-3">
