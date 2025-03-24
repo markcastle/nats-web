@@ -146,9 +146,10 @@ export const NatsProvider = ({ children }: NatsProviderProps) => {
             const data = sc.decode(msg.data);
             callback(data);
           }
-        } catch (err) {
+        } catch (err: unknown) {
+          const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
           console.error(`Error processing messages for topic ${topic}:`, err);
-          setError(`Subscription error for topic ${topic}: ${err.message}`);
+          setError(`Subscription error for topic ${topic}: ${errorMessage}`);
           // Remove the subscription using our helper
           updateSubscriptions(map => map.delete(topic));
         }
