@@ -39,7 +39,7 @@ export const NatsProvider = ({ children }: NatsProviderProps) => {
   const [connection, setConnection] = useState<NatsConnection | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeSubscriptions] = useState<Map<string, Subscription>>(new Map());
+  const [activeSubscriptions, setActiveSubscriptions] = useState<Map<string, Subscription>>(new Map());
 
   // Clean up connection on unmount
   useEffect(() => {
@@ -49,6 +49,15 @@ export const NatsProvider = ({ children }: NatsProviderProps) => {
       }
     };
   }, [connection]);
+
+  // Helper function to safely update subscriptions
+  const updateSubscriptions = (updater: (map: Map<string, Subscription>) => void) => {
+    setActiveSubscriptions(prevMap => {
+      const newMap = new Map(prevMap);
+      updater(newMap);
+      return newMap;
+    });
+  };
 
   const connectToNats = async (serverUrl: string, authOptions: NatsAuthOptions = {}, timeout?: number) => {
     try {
@@ -66,11 +75,15 @@ export const NatsProvider = ({ children }: NatsProviderProps) => {
         console.log('NATS connection closed');
         setIsConnected(false);
         setConnection(null);
+        // Clear subscriptions on disconnect
+        setActiveSubscriptions(new Map());
       }).catch((err) => {
         console.error('NATS connection closed with error:', err);
         setError(`Connection closed with error: ${err.message}`);
         setIsConnected(false);
         setConnection(null);
+        // Clear subscriptions on error
+        setActiveSubscriptions(new Map());
       });
       
     } catch (err: any) {
@@ -87,7 +100,7 @@ export const NatsProvider = ({ children }: NatsProviderProps) => {
         for (const sub of activeSubscriptions.values()) {
           sub.unsubscribe();
         }
-        activeSubscriptions.clear();
+        setActiveSubscriptions(new Map());
         
         // Close the connection
         await connection.close();
@@ -123,18 +136,23 @@ export const NatsProvider = ({ children }: NatsProviderProps) => {
       const sc = StringCodec();
       const sub = connection.subscribe(topic);
       
-      // Store the subscription
-      activeSubscriptions.set(topic, sub);
+      // Store the subscription using our helper
+      updateSubscriptions(map => map.set(topic, sub));
       
       // Process messages
       (async () => {
-        for await (const msg of sub) {
-          const data = sc.decode(msg.data);
-          callback(data);
+        try {
+          for await (const msg of sub) {
+            const data = sc.decode(msg.data);
+            callback(data);
+          }
+        } catch (err) {
+          console.error(`Error processing messages for topic ${topic}:`, err);
+          setError(`Subscription error for topic ${topic}: ${err.message}`);
+          // Remove the subscription using our helper
+          updateSubscriptions(map => map.delete(topic));
         }
-      })().catch((err) => {
-        setError(`Subscription error: ${err.message}`);
-      });
+      })();
       
       return sub;
     } catch (err: any) {

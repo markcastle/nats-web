@@ -17,7 +17,14 @@ const SubscribeToTopic = () => {
 
   // Update subscriptions list when activeSubscriptions changes
   useEffect(() => {
-    setSubscriptions(Array.from(activeSubscriptions.keys()));
+    const currentSubs = Array.from(activeSubscriptions.keys());
+    setSubscriptions(currentSubs);
+    
+    // Cleanup function to handle component unmount
+    return () => {
+      // The cleanup is handled by the NatsContext when disconnecting
+      console.log('SubscribeToTopic component unmounting, subscriptions:', currentSubs);
+    };
   }, [activeSubscriptions]);
 
   const handleSubscribe = async (e: React.FormEvent) => {
@@ -41,7 +48,7 @@ const SubscribeToTopic = () => {
     }
     
     try {
-      await subscribeToTopic(topic, (messageContent) => {
+      const sub = await subscribeToTopic(topic, (messageContent) => {
         const newMessage: Message = {
           id: Date.now().toString(),
           topic,
@@ -52,18 +59,25 @@ const SubscribeToTopic = () => {
         setMessages((prevMessages) => [newMessage, ...prevMessages]);
       });
       
-      setSubscribeStatus({
-        success: true,
-        message: `Subscribed to topic "${topic}"`
-      });
-      
-      // Clear the topic field
-      setTopic('');
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setSubscribeStatus(null);
-      }, 3000);
+      if (sub) {
+        setSubscribeStatus({
+          success: true,
+          message: `Subscribed to topic "${topic}"`
+        });
+        
+        // Clear the topic field
+        setTopic('');
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => {
+          setSubscribeStatus(null);
+        }, 3000);
+      } else {
+        setSubscribeStatus({
+          success: false,
+          message: 'Failed to create subscription'
+        });
+      }
     } catch (err: any) {
       setSubscribeStatus({
         success: false,
