@@ -29,7 +29,7 @@ Since this is a browser-based application, your NATS server must be configured t
    - Username & Password option with dedicated input fields
    - Token authentication with dedicated token field
 
-> 📝 **Important Update**: Embedding credentials in the URL (`wss://username:password@nats.example.com`) is no longer supported as it doesn't work reliably with the NATS.ws client. Always use the separate authentication fields.
+> 📝 **Important Update**: Embedding credentials in the URL (`wss://username:password@nats.example.com`) is no longer supported as it doesn't see to work reliably with the NATS.ws client. Always use the separate authentication fields.
 
 ## NATS Server WebSocket Configuration ⚙️
 
